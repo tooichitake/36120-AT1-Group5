@@ -96,32 +96,32 @@ def create_features_for_lightgbm(df):
 def prepare_lightgbm_datasets(train_feat, test_feat):
     """Prepare LightGBM native datasets"""
     
-    # 选择特征 - 排除ID和目标变量
+    # Select features - exclude ID and target variables
     exclude_cols = ['player_id', 'drafted', 'ht']
     
-    # 分类特征
+    # Categorical features
     categorical_features = ['team', 'conf', 'yr', 'type']
     
-    # 处理分类特征 - LightGBM支持直接使用类别型
+    # Handle categorical features - LightGBM supports direct category type
     for cat_feat in categorical_features:
         train_feat[cat_feat] = train_feat[cat_feat].astype('category')
         test_feat[cat_feat] = test_feat[cat_feat].astype('category')
         
-        # 确保训练集和测试集有相同的类别
+        # Ensure train and test sets have same categories
         all_cats = set(train_feat[cat_feat].cat.categories) | set(test_feat[cat_feat].cat.categories)
         train_feat[cat_feat] = train_feat[cat_feat].cat.set_categories(all_cats)
         test_feat[cat_feat] = test_feat[cat_feat].cat.set_categories(all_cats)
     
-    # 所有特征
+    # All features
     feature_cols = [col for col in train_feat.columns if col not in exclude_cols]
     
     X_train = train_feat[feature_cols]
     y_train = train_feat['drafted']
     X_test = test_feat[feature_cols]
     
-    print(f"\n最终特征数量: {len(feature_cols)}")
-    print(f"分类特征: {categorical_features}")
-    print(f"训练集形状: {X_train.shape}")
+    print(f"\nFinal feature count: {len(feature_cols)}")
+    print(f"Categorical features: {categorical_features}")
+    print(f"Training set shape: {X_train.shape}")
     
     return X_train, y_train, X_test, feature_cols, categorical_features
 
@@ -129,65 +129,65 @@ def main():
     """Main function"""
     print("=== NBA Draft Prediction - LightGBM Optuna Native Integration ===\n")
     
-    # 1. 加载数据
+    # 1. Load data
     train_df, test_df = load_and_analyze_data()
     
-    # 2. 特征工程 - 保留缺失值
+    # 2. Feature engineering - preserve missing values
     print("\n=== Feature Engineering ===")
     train_feat = create_features_for_lightgbm(train_df)
     test_feat = create_features_for_lightgbm(test_df)
     
-    # 3. 准备数据集
+    # 3. Prepare datasets
     X_train, y_train, X_test, feature_cols, categorical_features = prepare_lightgbm_datasets(train_feat, test_feat)
     
-    # 4. 设置基础参数（只包含必要的固定参数）
+    # 4. Set basic parameters (only necessary fixed parameters)
     lgb_params = {
         'objective': 'binary',
         'metric': 'auc',
-        'boosting_type': 'dart',  # 对于表格数据最稳定可靠,gbdt,dart也可以尝试
+        'boosting_type': 'dart',  # Most stable for tabular data, can try gbdt, dart
         'num_threads': -1,
         'verbosity': -1,
     }
     
-    # 5. 创建数据集
+    # 5. Create dataset
     lgb_train = lgb.Dataset(X_train, label=y_train, categorical_feature=categorical_features)
     
-    # 6. 使用Optuna的LightGBM集成进行超参数优化
+    # 6. Use Optuna's LightGBM integration for hyperparameter optimization
     print("\n=== LightGBM Optuna Native Optimization ===")
     print("Optuna will automatically search for best hyperparameters...")
     
-    # 使用optuna.integration.lightgbm的LightGBMTunerCV进行优化
+    # Use optuna.integration.lightgbm's LightGBMTunerCV for optimization
     tuner = lgb_optuna.LightGBMTunerCV(
         params=lgb_params,
         train_set=lgb_train,
         num_boost_round=1000,
-        nfold=5,  # 5折交叉验证
-        stratified=True,  # 分层采样（对于分类问题）
-        shuffle=True,  # 打乱数据
+        nfold=5,  # 5-fold cross-validation
+        stratified=True,  # Stratified sampling (for classification)
+        shuffle=True,  # Shuffle data
         callbacks=[
             lgb.early_stopping(stopping_rounds=50),
-            lgb.log_evaluation(0)  # 不显示训练日志
+            lgb.log_evaluation(0)  # Don't show training logs
         ],
-        show_progress_bar=False,  # 不显示进度条以保持输出清洁
-        return_cvbooster=True  # 允许获取最佳模型
+        show_progress_bar=False,  # Don't show progress bar for clean output
+        return_cvbooster=True  # Allow getting best model
     )
     
-    # 运行优化
+    # Run optimization
     print("Starting hyperparameter optimization (this may take several minutes)...")
     print("Optimization progress:")
     tuner.run()
     print("✓ Hyperparameter optimization completed")
     
-    # 获取最佳参数
+    # Get best parameters
     best_params = tuner.best_params
     best_params.update(lgb_params)
     
     print("\n=== Best Parameters ===")
     for key, value in best_params.items():
-        if key not in lgb_params:  # 只显示优化的参数
+        if key not in lgb_params:  # Only show optimized parameters
             print(f"  {key}: {value}")
     
-    # 获取最佳模型（CVBooster）
+    # Get best model (CVBooster)
     print("\n=== Getting Best Cross-Validation Model ===")
     try:
         cv_booster = tuner.get_best_booster()
@@ -203,10 +203,10 @@ def main():
             callbacks=[lgb.log_evaluation(0)]
         )
     
-    # 7. 显示最佳分数
+    # 7. Show best score
     print(f"\nBest cross-validation AUC: {tuner.best_score:.4f}")
     
-    # 8. 特征重要性
+    # 8. Feature importance
     print("\n=== Top 20 Feature Importance ===")
     importance_df = pd.DataFrame({
         'feature': feature_cols,
@@ -215,7 +215,7 @@ def main():
     
     print(importance_df.to_string(index=False))
     
-    # 9. 生成预测
+    # 9. Generate predictions
     print("\n=== Generating Predictions ===")
     predictions = model.predict(X_test, num_iteration=model.best_iteration)
     
@@ -225,13 +225,13 @@ def main():
     print(f"Mean: {predictions.mean():.6f}")
     print(f"Std: {predictions.std():.6f}")
     
-    # 10. 保存结果
+    # 10. Save results
     submission = pd.DataFrame({
-        'id': test_feat['player_id'],
+        'player_id': test_feat['player_id'],
         'drafted': predictions
     })
     
-    # 验证列名
+    # Verify column names
     print(f"\nSubmission file columns: {submission.columns.tolist()}")
     print(f"Submission file first 5 rows:")
     print(submission.head())
@@ -240,7 +240,7 @@ def main():
     print(f"\nPrediction results saved to lightgbm_optuna_predictions.csv")
     print(f"Submission file shape: {submission.shape}")
     
-    # 11. 显示模型信息
+    # 11. Show model information
     try:
         print(f"\nBest iteration: {model.best_iteration}")
     except:
