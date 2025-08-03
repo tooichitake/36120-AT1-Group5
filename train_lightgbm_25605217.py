@@ -10,6 +10,13 @@ def load_and_analyze_data():
     train_df = pd.read_csv('train.csv')
     test_df = pd.read_csv('test.csv')
     
+    # Convert all numeric columns to float64 for competition precision
+    numeric_cols = train_df.select_dtypes(include=[np.number]).columns.tolist()
+    for col in numeric_cols:
+        train_df[col] = train_df[col].astype(np.float64)
+        if col in test_df.columns:
+            test_df[col] = test_df[col].astype(np.float64)
+    
     print(f"Training set shape: {train_df.shape}")
     print(f"Test set shape: {test_df.shape}")
     
@@ -50,28 +57,28 @@ def create_features_for_lightgbm(df):
     print("\n=== LightGBM Native Feature Engineering ===")
     
     # 1. Height processing - do not fill missing values
-    df_feat['height_numeric'] = df_feat['ht'].apply(height_to_inches)
+    df_feat['height_numeric'] = df_feat['ht'].apply(height_to_inches).astype(np.float64, errors='ignore')
     
     # 2. Basic interaction features
-    df_feat['usage_efficiency'] = df_feat['usg'] * df_feat['TS_per']
-    df_feat['minutes_impact'] = df_feat['Min_per'] * df_feat['bpm']
-    df_feat['offensive_load'] = df_feat['usg'] + df_feat['AST_per']
+    df_feat['usage_efficiency'] = (df_feat['usg'] * df_feat['TS_per']).astype(np.float64)
+    df_feat['minutes_impact'] = (df_feat['Min_per'] * df_feat['bpm']).astype(np.float64)
+    df_feat['offensive_load'] = (df_feat['usg'] + df_feat['AST_per']).astype(np.float64)
     
     # 3. Ratio features
-    df_feat['assist_turnover_ratio'] = df_feat['AST_per'] / (df_feat['TO_per'] + 0.1)
-    df_feat['rebound_total'] = df_feat['ORB_per'] + df_feat['DRB_per']
-    df_feat['defensive_stats'] = df_feat['stl_per'] + df_feat['blk_per']
+    df_feat['assist_turnover_ratio'] = (df_feat['AST_per'] / (df_feat['TO_per'] + 0.1)).astype(np.float64)
+    df_feat['rebound_total'] = (df_feat['ORB_per'] + df_feat['DRB_per']).astype(np.float64)
+    df_feat['defensive_stats'] = (df_feat['stl_per'] + df_feat['blk_per']).astype(np.float64)
     
     # 4. Advanced features
     df_feat['all_around_score'] = (
         df_feat['AST_per'] * 0.3 + 
         df_feat['rebound_total'] * 0.4 + 
         df_feat['defensive_stats'] * 0.3
-    )
+    ).astype(np.float64)
     
     # 5. Efficiency metrics
-    df_feat['true_shooting_volume'] = df_feat['TS_per'] * np.log1p(df_feat['usg'])
-    df_feat['per_minute_impact'] = df_feat['bpm'] / (df_feat['Min_per'] + 1)
+    df_feat['true_shooting_volume'] = (df_feat['TS_per'] * np.log1p(df_feat['usg'])).astype(np.float64)
+    df_feat['per_minute_impact'] = (df_feat['bpm'] / (df_feat['Min_per'] + 1)).astype(np.float64)
     
     # 6. Grade to numeric conversion
     yr_to_numeric = {'Fr': 1, 'So': 2, 'Jr': 3, 'Sr': 4}
@@ -147,10 +154,18 @@ def main():
         'boosting_type': 'dart',  # Most stable for tabular data, can try gbdt, dart
         'num_threads': -1,
         'verbosity': -1,
+        'is_unbalanced': True,  # Handle class imbalance
+        'seed': 42,  # Random seed
     }
     
-    # 5. Create dataset
-    lgb_train = lgb.Dataset(X_train, label=y_train, categorical_feature=categorical_features)
+    # 5. Create dataset - ensure float64 precision
+    # Convert to float64 before creating dataset
+    numeric_features = [col for col in X_train.columns if col not in categorical_features]
+    for col in numeric_features:
+        X_train[col] = X_train[col].astype(np.float64)
+        X_test[col] = X_test[col].astype(np.float64)
+    
+    lgb_train = lgb.Dataset(X_train, label=y_train.astype(np.float64), categorical_feature=categorical_features)
     
     # 6. Use Optuna's LightGBM integration for hyperparameter optimization
     print("\n=== LightGBM Optuna Native Optimization ===")
@@ -160,12 +175,12 @@ def main():
     tuner = lgb_optuna.LightGBMTunerCV(
         params=lgb_params,
         train_set=lgb_train,
-        num_boost_round=1000,
-        nfold=5,  # 5-fold cross-validation
+        num_boost_round=500,
+        nfold=10,  # 5-fold cross-validation
         stratified=True,  # Stratified sampling (for classification)
         shuffle=True,  # Shuffle data
         callbacks=[
-            lgb.early_stopping(stopping_rounds=50),
+            lgb.early_stopping(stopping_rounds=30),
             lgb.log_evaluation(0)  # Don't show training logs
         ],
         show_progress_bar=False,  # Don't show progress bar for clean output
@@ -218,6 +233,8 @@ def main():
     # 9. Generate predictions
     print("\n=== Generating Predictions ===")
     predictions = model.predict(X_test, num_iteration=model.best_iteration)
+    # Ensure predictions are float64 for competition precision
+    predictions = predictions.astype(np.float64)
     
     print(f"Prediction distribution:")
     print(f"Min: {predictions.min():.6f}")
