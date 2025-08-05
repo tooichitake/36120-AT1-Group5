@@ -1,0 +1,12 @@
+{
+  "best_params": null,
+  "metrics": {
+    "accuracy": 0.9954873646209387,
+    "precision": 0.9,
+    "recall": 0.5,
+    "f1": 0.6428571428571429,
+    "roc_auc": 0.9966383581033263
+  },
+  "random_state": 42,
+  "is_unbalanced": true
+}
