@@ -17,11 +17,10 @@ This project implements state-of-the-art machine learning models to predict NBA 
 
 ## 📊 Project Information
 
-**Student**: Zhiyuan Zhao  
-**Student ID**: 25605217  
 **Group**: 5  
 **Course**: 36120 Data Science Practice  
 **Semester**: 2025 Spring  
+**Institution**: University of Technology Sydney  
 
 ---
 
@@ -360,10 +359,9 @@ This project is for educational purposes as part of UTS 36120 Data Science Pract
 
 ## 📧 Contact
 
-**Zhiyuan Zhao**  
-Student ID: 25605217  
-University of Technology Sydney  
-Email: [Contact via GitHub]
+For questions or collaboration regarding this project, please use:
+- GitHub Issues: [Project Repository](https://github.com/36120-AT1-Group5)
+- Academic Inquiries: Contact through official university channels
 
 ---
 

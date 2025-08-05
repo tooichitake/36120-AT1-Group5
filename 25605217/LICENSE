@@ -1,0 +1,93 @@
+MIT License
+
+Copyright (c) 2025 36120-AT1-Group5 Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+ACADEMIC USE NOTICE
+================================================================================
+
+This project was developed as part of academic assessment requirements for
+educational purposes. The work contained in this repository represents 
+coursework and should be cited appropriately if used for research or 
+educational purposes.
+
+================================================================================
+DATASET LICENSE
+================================================================================
+
+The college basketball datasets used in this project are subject to their own
+licensing terms. Users must ensure compliance with the original data sources'
+terms of use.
+
+================================================================================
+THIRD-PARTY LIBRARIES
+================================================================================
+
+This project makes use of several open-source libraries, each governed by their
+own licenses:
+
+- scikit-learn: BSD 3-Clause License
+- pandas: BSD 3-Clause License
+- numpy: BSD 3-Clause License
+- LightGBM: MIT License
+- CatBoost: Apache License 2.0
+- XGBoost: Apache License 2.0
+- Optuna: MIT License
+- Matplotlib: PSF License
+- Seaborn: BSD 3-Clause License
+- Jupyter: BSD 3-Clause License
+
+Users must comply with the respective licenses of all third-party dependencies.
+
+================================================================================
+CITATION
+================================================================================
+
+If you use this code for research or educational purposes, please cite:
+
+@misc{nbadraft2025,
+  author = {Group 5 Contributors},
+  title = {NBA Draft Prediction Using Machine Learning},
+  year = {2025},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/36120-AT1-Group5}},
+  note = {Academic Project - Data Science Practice}
+}
+
+================================================================================
+DISCLAIMER
+================================================================================
+
+This project is for educational purposes only. The predictions and analyses
+provided should not be used as the sole basis for professional scouting or
+draft decisions. The authors assume no responsibility for decisions made based
+on the outputs of these models.
+
+Machine learning models may contain biases and should not be used for making
+decisions about individuals without proper validation and human oversight.
+
+================================================================================
+CONTACT
+================================================================================
+
+For questions regarding this license or the project, please use the GitHub
+repository issues section for communication.
