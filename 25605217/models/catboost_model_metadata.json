@@ -1,0 +1,18 @@
+{
+  "best_params": {
+    "learning_rate": 0.16967533607196555,
+    "depth": 5,
+    "l2_leaf_reg": 2.636424704863906,
+    "border_count": 73,
+    "bagging_temperature": 0.3042422429595377,
+    "random_strength": 5.247564316322379
+  },
+  "metrics": {
+    "accuracy": 0.9923285198555957,
+    "precision": 0.52,
+    "recall": 0.7222222222222222,
+    "f1": 0.6046511627906976,
+    "roc_auc": 0.9972449701749065
+  },
+  "random_state": 42
+}
