@@ -791,3 +791,437 @@ class LightGBMTrainer:
         
         if self.verbose:
             print(f"Model loaded from {filepath}")
+
+
+class CatBoostTrainer:
+    """
+    CatBoost trainer with Optuna integration for NBA draft prediction.
+    """
+    
+    def __init__(self, random_state=42, verbose=False):
+        self.random_state = random_state
+        self.verbose = verbose
+        self.model = None
+        self.best_params = None
+        self.metrics = None
+        
+    def train_basic(self, X_train, y_train, X_val, y_val, 
+                   iterations=1000, early_stopping_rounds=50):
+        """
+        Train basic CatBoost model without optimization.
+        """
+        from catboost import CatBoostClassifier, Pool
+        
+        # Identify categorical features
+        cat_features = X_train.select_dtypes(include=['object', 'category']).columns.tolist()
+        
+        # Create Pool objects
+        train_pool = Pool(X_train, y_train, cat_features=cat_features)
+        val_pool = Pool(X_val, y_val, cat_features=cat_features)
+        
+        # Base parameters
+        params = {
+            'iterations': iterations,
+            'learning_rate': 0.1,
+            'depth': 6,
+            'loss_function': 'Logloss',
+            'eval_metric': 'AUC',
+            'random_seed': self.random_state,
+            'early_stopping_rounds': early_stopping_rounds,
+            'use_best_model': True,
+            'verbose': self.verbose,
+            'auto_class_weights': 'Balanced'  # Handle class imbalance
+        }
+        
+        # Train model
+        self.model = CatBoostClassifier(**params)
+        self.model.fit(train_pool, eval_set=val_pool, verbose=self.verbose)
+        
+        # Calculate metrics
+        y_pred_proba = self.model.predict_proba(X_val)[:, 1]
+        y_pred = self.model.predict(X_val)
+        
+        self.metrics = {
+            'accuracy': accuracy_score(y_val, y_pred),
+            'precision': precision_score(y_val, y_pred),
+            'recall': recall_score(y_val, y_pred),
+            'f1': f1_score(y_val, y_pred),
+            'roc_auc': roc_auc_score(y_val, y_pred_proba)
+        }
+        
+        if self.verbose:
+            print("\nValidation metrics:")
+            for metric, value in self.metrics.items():
+                print(f"  {metric}: {value:.4f}")
+        
+        return self.model
+    
+    def train_with_optuna(self, X_train, y_train, X_val, y_val, n_trials=100):
+        """
+        Train CatBoost with Optuna optimization.
+        """
+        from catboost import CatBoostClassifier, Pool
+        
+        # Identify categorical features
+        cat_features = X_train.select_dtypes(include=['object', 'category']).columns.tolist()
+        
+        def objective(trial):
+            params = {
+                'iterations': 1000,
+                'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
+                'depth': trial.suggest_int('depth', 4, 10),
+                'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 10),
+                'border_count': trial.suggest_int('border_count', 32, 255),
+                'bagging_temperature': trial.suggest_float('bagging_temperature', 0, 1),
+                'random_strength': trial.suggest_float('random_strength', 0, 10),
+                'loss_function': 'Logloss',
+                'eval_metric': 'AUC',
+                'random_seed': self.random_state,
+                'early_stopping_rounds': 50,
+                'use_best_model': True,
+                'verbose': False,
+                'auto_class_weights': 'Balanced'
+            }
+            
+            # Create Pool objects
+            train_pool = Pool(X_train, y_train, cat_features=cat_features)
+            val_pool = Pool(X_val, y_val, cat_features=cat_features)
+            
+            # Train model
+            model = CatBoostClassifier(**params)
+            model.fit(train_pool, eval_set=val_pool, verbose=False)
+            
+            # Return AUC score
+            y_pred_proba = model.predict_proba(X_val)[:, 1]
+            return roc_auc_score(y_val, y_pred_proba)
+        
+        # Create and run study
+        study = optuna.create_study(
+            direction='maximize',
+            sampler=optuna.samplers.TPESampler(seed=self.random_state)
+        )
+        
+        if self.verbose:
+            print(f"\nStarting Optuna optimization with {n_trials} trials...")
+        
+        study.optimize(
+            objective, 
+            n_trials=n_trials, 
+            show_progress_bar=self.verbose
+        )
+        
+        # Get best parameters and train final model
+        self.best_params = study.best_params
+        
+        if self.verbose:
+            print(f"\nBest trial score: {study.best_value:.4f}")
+            print("\nBest parameters:")
+            for key, value in self.best_params.items():
+                print(f"  {key}: {value}")
+        
+        # Train final model with best parameters
+        final_params = {
+            'iterations': 1000,
+            **self.best_params,
+            'loss_function': 'Logloss',
+            'eval_metric': 'AUC',
+            'random_seed': self.random_state,
+            'early_stopping_rounds': 50,
+            'use_best_model': True,
+            'verbose': self.verbose,
+            'auto_class_weights': 'Balanced'
+        }
+        
+        train_pool = Pool(X_train, y_train, cat_features=cat_features)
+        val_pool = Pool(X_val, y_val, cat_features=cat_features)
+        
+        self.model = CatBoostClassifier(**final_params)
+        self.model.fit(train_pool, eval_set=val_pool, verbose=self.verbose)
+        
+        # Calculate metrics
+        y_pred_proba = self.model.predict_proba(X_val)[:, 1]
+        y_pred = self.model.predict(X_val)
+        
+        self.metrics = {
+            'accuracy': accuracy_score(y_val, y_pred),
+            'precision': precision_score(y_val, y_pred),
+            'recall': recall_score(y_val, y_pred),
+            'f1': f1_score(y_val, y_pred),
+            'roc_auc': roc_auc_score(y_val, y_pred_proba)
+        }
+        
+        if self.verbose:
+            print("\nValidation metrics:")
+            for metric, value in self.metrics.items():
+                print(f"  {metric}: {value:.4f}")
+        
+        return self.model
+    
+    def get_feature_importance(self, feature_names, top_n=20):
+        """
+        Get feature importance from the trained model.
+        """
+        if self.model is None:
+            raise ValueError("Model not trained yet. Please train the model first.")
+        
+        importance_df = pd.DataFrame({
+            'feature': feature_names,
+            'importance': self.model.feature_importances_
+        }).sort_values('importance', ascending=False).head(top_n)
+        
+        # Normalize importance
+        importance_df['importance_normalized'] = (
+            importance_df['importance'] / importance_df['importance'].sum() * 100
+        )
+        
+        return importance_df
+    
+    def predict(self, X):
+        """
+        Make predictions on new data.
+        """
+        if self.model is None:
+            raise ValueError("Model not trained yet. Please train the model first.")
+        
+        y_pred_proba = self.model.predict_proba(X)[:, 1]
+        y_pred = self.model.predict(X)
+        
+        return y_pred, y_pred_proba
+    
+    def save_model(self, filepath):
+        """
+        Save the trained model to disk.
+        """
+        if self.model is None:
+            raise ValueError("Model not trained yet. Please train the model first.")
+        
+        self.model.save_model(filepath)
+        
+        # Save metadata
+        import json
+        metadata = {
+            'best_params': self.best_params,
+            'metrics': self.metrics,
+            'random_state': self.random_state
+        }
+        
+        metadata_path = str(filepath).replace('.cbm', '_metadata.json')
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        if self.verbose:
+            print(f"Model saved to {filepath}")
+            print(f"Metadata saved to {metadata_path}")
+
+
+class RandomForestTrainer:
+    """
+    Random Forest trainer with Optuna optimization for NBA draft prediction.
+    """
+    
+    def __init__(self, random_state=42, verbose=False):
+        self.random_state = random_state
+        self.verbose = verbose
+        self.model = None
+        self.best_params = None
+        self.metrics = None
+        
+    def train_basic(self, X_train, y_train, X_val, y_val, 
+                   n_estimators=100, max_depth=None):
+        """
+        Train basic Random Forest model without optimization.
+        """
+        # Handle categorical features by encoding
+        X_train_encoded = self._encode_categoricals(X_train)
+        X_val_encoded = self._encode_categoricals(X_val)
+        
+        # Base parameters
+        params = {
+            'n_estimators': n_estimators,
+            'max_depth': max_depth,
+            'min_samples_split': 5,
+            'min_samples_leaf': 2,
+            'max_features': 'sqrt',
+            'random_state': self.random_state,
+            'class_weight': 'balanced',  # Handle class imbalance
+            'n_jobs': -1
+        }
+        
+        # Train model
+        self.model = RandomForestClassifier(**params)
+        self.model.fit(X_train_encoded, y_train)
+        
+        # Calculate metrics
+        y_pred_proba = self.model.predict_proba(X_val_encoded)[:, 1]
+        y_pred = self.model.predict(X_val_encoded)
+        
+        self.metrics = {
+            'accuracy': accuracy_score(y_val, y_pred),
+            'precision': precision_score(y_val, y_pred),
+            'recall': recall_score(y_val, y_pred),
+            'f1': f1_score(y_val, y_pred),
+            'roc_auc': roc_auc_score(y_val, y_pred_proba)
+        }
+        
+        if self.verbose:
+            print("\nValidation metrics:")
+            for metric, value in self.metrics.items():
+                print(f"  {metric}: {value:.4f}")
+        
+        return self.model
+    
+    def train_with_optuna(self, X_train, y_train, X_val, y_val, n_trials=100):
+        """
+        Train Random Forest with Optuna optimization.
+        """
+        # Handle categorical features
+        X_train_encoded = self._encode_categoricals(X_train)
+        X_val_encoded = self._encode_categoricals(X_val)
+        
+        def objective(trial):
+            params = {
+                'n_estimators': trial.suggest_int('n_estimators', 50, 500),
+                'max_depth': trial.suggest_int('max_depth', 3, 20),
+                'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
+                'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
+                'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None]),
+                'max_samples': trial.suggest_float('max_samples', 0.5, 1.0),
+                'random_state': self.random_state,
+                'class_weight': 'balanced',
+                'n_jobs': -1
+            }
+            
+            # Train model
+            model = RandomForestClassifier(**params)
+            model.fit(X_train_encoded, y_train)
+            
+            # Return AUC score
+            y_pred_proba = model.predict_proba(X_val_encoded)[:, 1]
+            return roc_auc_score(y_val, y_pred_proba)
+        
+        # Create and run study
+        study = optuna.create_study(
+            direction='maximize',
+            sampler=optuna.samplers.TPESampler(seed=self.random_state)
+        )
+        
+        if self.verbose:
+            print(f"\nStarting Optuna optimization with {n_trials} trials...")
+        
+        study.optimize(
+            objective, 
+            n_trials=n_trials, 
+            show_progress_bar=self.verbose
+        )
+        
+        # Get best parameters and train final model
+        self.best_params = study.best_params
+        
+        if self.verbose:
+            print(f"\nBest trial score: {study.best_value:.4f}")
+            print("\nBest parameters:")
+            for key, value in self.best_params.items():
+                print(f"  {key}: {value}")
+        
+        # Train final model with best parameters
+        final_params = {
+            **self.best_params,
+            'random_state': self.random_state,
+            'class_weight': 'balanced',
+            'n_jobs': -1
+        }
+        
+        self.model = RandomForestClassifier(**final_params)
+        self.model.fit(X_train_encoded, y_train)
+        
+        # Store encoded data for predictions
+        self._X_train_encoded = X_train_encoded
+        self._X_val_encoded = X_val_encoded
+        
+        # Calculate metrics
+        y_pred_proba = self.model.predict_proba(X_val_encoded)[:, 1]
+        y_pred = self.model.predict(X_val_encoded)
+        
+        self.metrics = {
+            'accuracy': accuracy_score(y_val, y_pred),
+            'precision': precision_score(y_val, y_pred),
+            'recall': recall_score(y_val, y_pred),
+            'f1': f1_score(y_val, y_pred),
+            'roc_auc': roc_auc_score(y_val, y_pred_proba)
+        }
+        
+        if self.verbose:
+            print("\nValidation metrics:")
+            for metric, value in self.metrics.items():
+                print(f"  {metric}: {value:.4f}")
+        
+        return self.model
+    
+    def _encode_categoricals(self, X):
+        """
+        Encode categorical features for Random Forest.
+        """
+        X_encoded = X.copy()
+        
+        # Convert categorical columns to numeric
+        for col in X_encoded.select_dtypes(include=['object', 'category']).columns:
+            X_encoded[col] = pd.Categorical(X_encoded[col]).codes
+        
+        return X_encoded
+    
+    def get_feature_importance(self, feature_names, top_n=20):
+        """
+        Get feature importance from the trained model.
+        """
+        if self.model is None:
+            raise ValueError("Model not trained yet. Please train the model first.")
+        
+        importance_df = pd.DataFrame({
+            'feature': feature_names,
+            'importance': self.model.feature_importances_
+        }).sort_values('importance', ascending=False).head(top_n)
+        
+        # Normalize importance
+        importance_df['importance_normalized'] = (
+            importance_df['importance'] / importance_df['importance'].sum() * 100
+        )
+        
+        return importance_df
+    
+    def predict(self, X):
+        """
+        Make predictions on new data.
+        """
+        if self.model is None:
+            raise ValueError("Model not trained yet. Please train the model first.")
+        
+        X_encoded = self._encode_categoricals(X)
+        y_pred_proba = self.model.predict_proba(X_encoded)[:, 1]
+        y_pred = self.model.predict(X_encoded)
+        
+        return y_pred, y_pred_proba
+    
+    def save_model(self, filepath):
+        """
+        Save the trained model to disk.
+        """
+        if self.model is None:
+            raise ValueError("Model not trained yet. Please train the model first.")
+        
+        joblib.dump(self.model, filepath)
+        
+        # Save metadata
+        import json
+        metadata = {
+            'best_params': self.best_params,
+            'metrics': self.metrics,
+            'random_state': self.random_state
+        }
+        
+        metadata_path = str(filepath).replace('.pkl', '_metadata.json')
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        if self.verbose:
+            print(f"Model saved to {filepath}")
+            print(f"Metadata saved to {metadata_path}")
