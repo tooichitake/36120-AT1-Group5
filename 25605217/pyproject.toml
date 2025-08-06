@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "25605217"
+version = "0.1.0"
+description = "Machine Learning Project AT1"
+package-mode = false
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11.4"
+scikit-learn = "1.5.1"
+pandas = "2.2.2"
+jupyterlab = "4.2.3"
+joblib = "1.4.2"
+xgboost = "2.1.0"
+hyperopt = "0.2.7"
+lightgbm = "4.4.0"
+lime = "0.2.0.1"
+wandb = "0.17.4"
+optuna-integration = "^4.4.0"
+seaborn = "^0.13.2"
+optuna = "^4.4.0"
+catboost = "^1.2.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
