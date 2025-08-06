@@ -376,3 +376,305 @@ def lightgbm_feature_importance_analysis(df: pd.DataFrame, target_col: str = 'dr
     print(f"F1 Score: {f1_score(y_val, y_pred):.4f}")
     
     return fig, importance_df, model
+
+def randomforest_feature_importance_analysis(df: pd.DataFrame, target_col: str = 'drafted', 
+                                            n_estimators: int = 100, top_n: int = 30):
+    """Analyze feature importance using Random Forest quick training."""
+    import matplotlib.pyplot as plt
+    from sklearn.ensemble import RandomForestClassifier
+    
+    # Prepare data - exclude non-numeric and identifier columns
+    exclude_cols = [target_col, 'player_id', 'ht', 'pick']
+    X = df.drop([col for col in exclude_cols if col in df.columns], axis=1)
+    y = df[target_col]
+    
+    # Encode categorical features for Random Forest
+    X_encoded = X.copy()
+    categorical_cols = X_encoded.select_dtypes(include=['object', 'category']).columns
+    for col in categorical_cols:
+        X_encoded[col] = pd.Categorical(X_encoded[col].fillna('missing')).codes
+    
+    # Split for validation
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_encoded, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    # Train Random Forest model
+    model = RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=10,
+        min_samples_split=5,
+        min_samples_leaf=2,
+        random_state=42,
+        class_weight='balanced',
+        n_jobs=-1
+    )
+    
+    model.fit(X_train, y_train)
+    
+    # Get feature importance
+    importance_df = pd.DataFrame({
+        'feature': X.columns,
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False).head(top_n)
+    
+    # Normalize importance
+    importance_df['importance_normalized'] = (
+        importance_df['importance'] / importance_df['importance'].sum() * 100
+    )
+    
+    # Create visualization
+    fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+    
+    # 1. Bar plot of importance
+    ax1 = axes[0]
+    colors = plt.cm.coolwarm(np.linspace(0.3, 0.9, len(importance_df)))
+    bars = ax1.barh(range(len(importance_df)), importance_df['importance'].values, color=colors)
+    ax1.set_yticks(range(len(importance_df)))
+    ax1.set_yticklabels(importance_df['feature'].values)
+    ax1.set_xlabel('Feature Importance', fontsize=12)
+    ax1.set_title(f'Top {top_n} Features by Random Forest Importance', fontsize=14, fontweight='bold')
+    ax1.invert_yaxis()
+    
+    # Add percentage labels
+    for bar, val, pct in zip(bars, importance_df['importance'].values, 
+                            importance_df['importance_normalized'].values):
+        ax1.text(val + max(importance_df['importance'].values)*0.01, 
+                bar.get_y() + bar.get_height()/2, 
+                f'{pct:.1f}%', ha='left', va='center', fontsize=9)
+    
+    # 2. Cumulative importance plot
+    ax2 = axes[1]
+    cumulative_importance = importance_df['importance_normalized'].cumsum()
+    ax2.plot(range(len(importance_df)), cumulative_importance.values, 
+            marker='o', linewidth=2, markersize=6, color='forestgreen')
+    ax2.fill_between(range(len(importance_df)), cumulative_importance.values, 
+                     alpha=0.3, color='forestgreen')
+    ax2.set_xlabel('Number of Features', fontsize=12)
+    ax2.set_ylabel('Cumulative Importance (%)', fontsize=12)
+    ax2.set_title('Cumulative Feature Importance', fontsize=14, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    
+    # Add 80% line
+    ax2.axhline(y=80, color='orange', linestyle='--', alpha=0.5, label='80% Importance')
+    ax2.legend()
+    
+    plt.tight_layout()
+    
+    print(f"\nTop {top_n} Features by Random Forest Importance:")
+    print("="*50)
+    print(importance_df[['feature', 'importance', 'importance_normalized']].to_string(index=False))
+    
+    # Print model performance
+    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+    y_pred = model.predict(X_val)
+    y_pred_proba = model.predict_proba(X_val)[:, 1]
+    print(f"\nValidation Performance:")
+    print(f"Accuracy: {accuracy_score(y_val, y_pred):.4f}")
+    print(f"F1 Score: {f1_score(y_val, y_pred):.4f}")
+    print(f"AUC Score: {roc_auc_score(y_val, y_pred_proba):.4f}")
+    
+    return fig, importance_df, model
+
+def catboost_feature_importance_analysis(df: pd.DataFrame, target_col: str = 'drafted', 
+                                        iterations: int = 100, top_n: int = 30):
+    """Analyze feature importance using CatBoost quick training."""
+    import matplotlib.pyplot as plt
+    from catboost import CatBoostClassifier
+    
+    # Prepare data - exclude non-numeric and identifier columns
+    exclude_cols = [target_col, 'player_id', 'ht', 'pick']
+    X = df.drop([col for col in exclude_cols if col in df.columns], axis=1)
+    y = df[target_col]
+    
+    # Identify categorical features
+    cat_features = X.select_dtypes(include=['object', 'category']).columns.tolist()
+    
+    # Handle missing values in categorical features for CatBoost
+    for col in cat_features:
+        X[col] = X[col].fillna('missing').astype(str)
+    
+    # Get indices of categorical features
+    cat_feature_indices = [X.columns.get_loc(col) for col in cat_features]
+    
+    # Split for validation
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    # Train CatBoost model
+    model = CatBoostClassifier(
+        iterations=iterations,
+        depth=6,
+        learning_rate=0.1,
+        cat_features=cat_feature_indices,
+        verbose=False,
+        random_seed=42,
+        eval_metric='AUC',
+        auto_class_weights='Balanced'
+    )
+    
+    model.fit(X_train, y_train, eval_set=(X_val, y_val), early_stopping_rounds=50, verbose=False)
+    
+    # Get feature importance
+    importance_df = pd.DataFrame({
+        'feature': X.columns,
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False).head(top_n)
+    
+    # Normalize importance
+    importance_df['importance_normalized'] = (
+        importance_df['importance'] / importance_df['importance'].sum() * 100
+    )
+    
+    # Create visualization
+    fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+    
+    # 1. Bar plot of importance
+    ax1 = axes[0]
+    colors = plt.cm.plasma(np.linspace(0.3, 0.9, len(importance_df)))
+    bars = ax1.barh(range(len(importance_df)), importance_df['importance'].values, color=colors)
+    ax1.set_yticks(range(len(importance_df)))
+    ax1.set_yticklabels(importance_df['feature'].values)
+    ax1.set_xlabel('Feature Importance', fontsize=12)
+    ax1.set_title(f'Top {top_n} Features by CatBoost Importance', fontsize=14, fontweight='bold')
+    ax1.invert_yaxis()
+    
+    # Add percentage labels
+    for bar, val, pct in zip(bars, importance_df['importance'].values, 
+                            importance_df['importance_normalized'].values):
+        ax1.text(val + max(importance_df['importance'].values)*0.01, 
+                bar.get_y() + bar.get_height()/2, 
+                f'{pct:.1f}%', ha='left', va='center', fontsize=9)
+    
+    # 2. Cumulative importance plot
+    ax2 = axes[1]
+    cumulative_importance = importance_df['importance_normalized'].cumsum()
+    ax2.plot(range(len(importance_df)), cumulative_importance.values, 
+            marker='o', linewidth=2, markersize=6, color='darkred')
+    ax2.fill_between(range(len(importance_df)), cumulative_importance.values, 
+                     alpha=0.3, color='darkred')
+    ax2.set_xlabel('Number of Features', fontsize=12)
+    ax2.set_ylabel('Cumulative Importance (%)', fontsize=12)
+    ax2.set_title('Cumulative Feature Importance', fontsize=14, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    
+    # Add 80% line
+    ax2.axhline(y=80, color='green', linestyle='--', alpha=0.5, label='80% Importance')
+    ax2.legend()
+    
+    plt.tight_layout()
+    
+    print(f"\nTop {top_n} Features by CatBoost Importance:")
+    print("="*50)
+    print(importance_df[['feature', 'importance', 'importance_normalized']].to_string(index=False))
+    
+    # Print model performance
+    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+    y_pred = model.predict(X_val)
+    y_pred_proba = model.predict_proba(X_val)[:, 1]
+    print(f"\nValidation Performance:")
+    print(f"Accuracy: {accuracy_score(y_val, y_pred):.4f}")
+    print(f"F1 Score: {f1_score(y_val, y_pred):.4f}")
+    print(f"AUC Score: {roc_auc_score(y_val, y_pred_proba):.4f}")
+    
+    return fig, importance_df, model
+
+def randomforest_feature_importance_analysis(df: pd.DataFrame, target_col: str = 'drafted', 
+                                            n_estimators: int = 100, top_n: int = 30):
+    """Analyze feature importance using Random Forest quick training."""
+    import matplotlib.pyplot as plt
+    from sklearn.ensemble import RandomForestClassifier
+    
+    # Prepare data - exclude non-numeric and identifier columns
+    exclude_cols = [target_col, 'player_id', 'ht', 'pick']
+    X = df.drop([col for col in exclude_cols if col in df.columns], axis=1)
+    y = df[target_col]
+    
+    # Encode categorical features for Random Forest
+    X_encoded = X.copy()
+    categorical_cols = X_encoded.select_dtypes(include=['object', 'category']).columns
+    for col in categorical_cols:
+        X_encoded[col] = pd.Categorical(X_encoded[col].fillna('missing')).codes
+    
+    # Split for validation
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_encoded, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    # Train Random Forest model
+    model = RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=10,
+        min_samples_split=5,
+        min_samples_leaf=2,
+        random_state=42,
+        class_weight='balanced',
+        n_jobs=-1
+    )
+    
+    model.fit(X_train, y_train)
+    
+    # Get feature importance
+    importance_df = pd.DataFrame({
+        'feature': X.columns,
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False).head(top_n)
+    
+    # Normalize importance
+    importance_df['importance_normalized'] = (
+        importance_df['importance'] / importance_df['importance'].sum() * 100
+    )
+    
+    # Create visualization
+    fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+    
+    # 1. Bar plot of importance
+    ax1 = axes[0]
+    colors = plt.cm.coolwarm(np.linspace(0.3, 0.9, len(importance_df)))
+    bars = ax1.barh(range(len(importance_df)), importance_df['importance'].values, color=colors)
+    ax1.set_yticks(range(len(importance_df)))
+    ax1.set_yticklabels(importance_df['feature'].values)
+    ax1.set_xlabel('Feature Importance', fontsize=12)
+    ax1.set_title(f'Top {top_n} Features by Random Forest Importance', fontsize=14, fontweight='bold')
+    ax1.invert_yaxis()
+    
+    # Add percentage labels
+    for bar, val, pct in zip(bars, importance_df['importance'].values, 
+                            importance_df['importance_normalized'].values):
+        ax1.text(val + max(importance_df['importance'].values)*0.01, 
+                bar.get_y() + bar.get_height()/2, 
+                f'{pct:.1f}%', ha='left', va='center', fontsize=9)
+    
+    # 2. Cumulative importance plot
+    ax2 = axes[1]
+    cumulative_importance = importance_df['importance_normalized'].cumsum()
+    ax2.plot(range(len(importance_df)), cumulative_importance.values, 
+            marker='o', linewidth=2, markersize=6, color='forestgreen')
+    ax2.fill_between(range(len(importance_df)), cumulative_importance.values, 
+                     alpha=0.3, color='forestgreen')
+    ax2.set_xlabel('Number of Features', fontsize=12)
+    ax2.set_ylabel('Cumulative Importance (%)', fontsize=12)
+    ax2.set_title('Cumulative Feature Importance', fontsize=14, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    
+    # Add 80% line
+    ax2.axhline(y=80, color='orange', linestyle='--', alpha=0.5, label='80% Importance')
+    ax2.legend()
+    
+    plt.tight_layout()
+    
+    print(f"\nTop {top_n} Features by Random Forest Importance:")
+    print("="*50)
+    print(importance_df[['feature', 'importance', 'importance_normalized']].to_string(index=False))
+    
+    # Print model performance
+    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+    y_pred = model.predict(X_val)
+    y_pred_proba = model.predict_proba(X_val)[:, 1]
+    print(f"\nValidation Performance:")
+    print(f"Accuracy: {accuracy_score(y_val, y_pred):.4f}")
+    print(f"F1 Score: {f1_score(y_val, y_pred):.4f}")
+    print(f"AUC Score: {roc_auc_score(y_val, y_pred_proba):.4f}")
+    
+    return fig, importance_df, model

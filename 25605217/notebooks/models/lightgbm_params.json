@@ -1,11 +1,19 @@
 {
-  "training_params": {},
+  "training_params": {
+    "objective": "binary",
+    "metric": "auc",
+    "boosting_type": "gbdt",
+    "num_threads": -1,
+    "verbosity": -1,
+    "is_unbalanced": true,
+    "seed": 42
+  },
   "metrics": {
     "accuracy": 0.9954873646209387,
     "precision": 0.9,
     "recall": 0.5,
     "f1": 0.6428571428571429,
-    "roc_auc": 0.9964108785764836
+    "roc_auc": 0.9968152866242038
   },
   "feature_names": [
     "team",
@@ -99,5 +107,8 @@
     "has_recruit_rank"
   ],
   "random_state": 42,
-  "is_unbalanced": true
+  "is_unbalanced": true,
+  "num_boost_round": 200,
+  "early_stopping_rounds": 50,
+  "best_iteration": 163
 }

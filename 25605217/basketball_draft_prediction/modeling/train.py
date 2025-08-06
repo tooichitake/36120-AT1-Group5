@@ -49,6 +49,84 @@ def get_lightgbm_base_params(random_state: int = 42, is_unbalanced: bool = True)
     
     return params
 
+def get_catboost_base_params(random_state: int = 42, auto_class_weights: bool = True) -> Dict[str, Any]:
+    """
+    Get base CatBoost parameters for binary classification.
+    
+    Parameters:
+    -----------
+    random_state : int
+        Random seed for reproducibility
+    auto_class_weights : bool
+        Whether to use balanced class weights for imbalanced data
+        
+    Returns:
+    --------
+    dict : Base CatBoost parameters
+    """
+    params = {
+        'loss_function': 'Logloss',
+        'eval_metric': 'AUC',
+        'random_seed': random_state,
+        'verbose': False,
+        'allow_writing_files': False,
+        'task_type': 'CPU'
+    }
+    
+    if auto_class_weights:
+        params['auto_class_weights'] = 'Balanced'
+    
+    print("Base CatBoost parameters set:")
+    for key, value in params.items():
+        print(f"  {key}: {value}")
+    
+    print("\nOptuna will optimize additional hyperparameters including:")
+    print("  - iterations, learning_rate, depth")
+    print("  - l2_leaf_reg, border_count")
+    print("  - bagging_temperature, random_strength")
+    
+    return params
+
+def get_randomforest_base_params(random_state: int = 42, class_weight: str = 'balanced') -> Dict[str, Any]:
+    """
+    Get base Random Forest parameters for binary classification.
+    
+    Parameters:
+    -----------
+    random_state : int
+        Random seed for reproducibility
+    class_weight : str
+        Class weight strategy ('balanced' or 'balanced_subsample')
+        
+    Returns:
+    --------
+    dict : Base Random Forest parameters
+    """
+    params = {
+        'criterion': 'gini',
+        'max_depth': 10,
+        'min_samples_split': 5,
+        'min_samples_leaf': 2,
+        'max_features': 'sqrt',
+        'bootstrap': True,
+        'oob_score': True,
+        'random_state': random_state,
+        'class_weight': class_weight,
+        'n_jobs': -1
+    }
+    
+    print("Base Random Forest parameters set:")
+    for key, value in params.items():
+        print(f"  {key}: {value}")
+    
+    print("\nOptuna will optimize additional hyperparameters including:")
+    print("  - n_estimators (100-1000)")
+    print("  - max_depth (5-30)")
+    print("  - min_samples_split, min_samples_leaf")
+    print("  - max_features (sqrt, log2, or fraction)")
+    
+    return params
+
 def prepare_lgb_datasets(
     X_train: pd.DataFrame,
     y_train: pd.Series,
@@ -405,7 +483,9 @@ class LightGBMTrainer:
         
     def train_basic(self, X_train, y_train, X_val, y_val, 
                    params=None, num_boost_round=100, 
-                   early_stopping_rounds=30, verbose_eval=20):
+                   early_stopping_rounds=30, verbose_eval=20,
+                   save_model=True, model_path=None,
+                   save_params=True, params_path=None):
         """
         Train basic LightGBM model without optimization.
         
@@ -423,11 +503,24 @@ class LightGBMTrainer:
             Early stopping patience
         verbose_eval : int
             Print metrics every N rounds
+        save_model : bool
+            Whether to save the trained model (default: True)
+        model_path : str
+            Path to save model (default: "models/lightgbm_model.txt")
+        save_params : bool
+            Whether to save parameters separately (default: True)
+        params_path : str
+            Path to save parameters (default: "models/lightgbm_params.json")
             
         Returns:
         --------
         lgb.Booster : Trained model
         """
+        if self.verbose:
+            print("="*60)
+            print("LIGHTGBM BASIC TRAINING")
+            print("="*60)
+        
         # Prepare datasets
         lgb_train, lgb_val, cat_indices = prepare_lgb_datasets(
             X_train, y_train, X_val, y_val
@@ -457,14 +550,63 @@ class LightGBMTrainer:
         }
         
         if self.verbose:
+            print("\n" + "="*60)
+            print("TRAINING COMPLETE")
+            print("="*60)
             print("\nValidation metrics:")
             for metric, value in self.metrics.items():
                 print(f"  {metric}: {value:.4f}")
         
+        # Save model if requested
+        if save_model:
+            if self.verbose:
+                print("\n" + "="*60)
+                print("SAVING MODEL")
+                print("="*60)
+            
+            if model_path is None:
+                model_path = "models/lightgbm_model.txt"
+            
+            # Create directory if needed
+            Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+            self.save_model(model_path)
+            
+            if self.verbose:
+                print(f"✓ Model saved to: {model_path}")
+        
+        # Save parameters separately if requested
+        if save_params:
+            if params_path is None:
+                params_path = "models/lightgbm_params.json"
+            
+            Path(params_path).parent.mkdir(parents=True, exist_ok=True)
+            
+            params_to_save = {
+                'training_params': params,
+                'metrics': self.metrics,
+                'feature_names': X_train.columns.tolist() if hasattr(X_train, 'columns') else None,
+                'random_state': self.random_state,
+                'is_unbalanced': self.is_unbalanced,
+                'num_boost_round': num_boost_round,
+                'early_stopping_rounds': early_stopping_rounds,
+                'best_iteration': self.model.best_iteration
+            }
+            
+            import json
+            with open(params_path, 'w') as f:
+                json.dump(params_to_save, f, indent=2)
+            
+            if self.verbose:
+                print(f"✓ Parameters saved to: {params_path}")
+        
+        # Store best_params as empty dict for consistency with optuna version
+        self.best_params = {}
+        
         return self.model
     
     def train_with_optuna(self, X_train, y_train, X_val, y_val, 
-                         n_trials=100, use_pruning=False):
+                         n_trials=100, use_pruning=False,
+                         save_model=False, model_path=None):
         """
         Train LightGBM with standard Optuna optimization.
         
@@ -806,7 +948,8 @@ class CatBoostTrainer:
         self.metrics = None
         
     def train_basic(self, X_train, y_train, X_val, y_val, 
-                   iterations=1000, early_stopping_rounds=50):
+                   iterations=1000, early_stopping_rounds=50,
+                   save_model=False, model_path=None):
         """
         Train basic CatBoost model without optimization.
         """
@@ -854,11 +997,36 @@ class CatBoostTrainer:
             for metric, value in self.metrics.items():
                 print(f"  {metric}: {value:.4f}")
         
+        # Save model if requested
+        if save_model:
+            if self.verbose:
+                print("\n" + "="*60)
+                print("SAVING MODEL")
+                print("="*60)
+            
+            if model_path is None:
+                model_path = "models/catboost_model.cbm"
+            
+            from pathlib import Path
+            Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+            self.save_model(model_path)
+            
+            if self.verbose:
+                print(f"✓ Model saved to: {model_path}")
+        
         return self.model
     
-    def train_with_optuna(self, X_train, y_train, X_val, y_val, n_trials=100):
+    def train_with_optuna(self, X_train, y_train, X_val, y_val, n_trials=100,
+                         save_model=True, model_path=None):
         """
         Train CatBoost with Optuna optimization.
+        
+        Parameters:
+        -----------
+        save_model : bool
+            Whether to save the trained model (default: True)
+        model_path : str
+            Path to save model (default: "models/catboost_model.cbm")
         """
         from catboost import CatBoostClassifier, Pool
         
@@ -1027,7 +1195,8 @@ class RandomForestTrainer:
         self.metrics = None
         
     def train_basic(self, X_train, y_train, X_val, y_val, 
-                   n_estimators=100, max_depth=None):
+                   n_estimators=100, max_depth=None,
+                   save_model=False, model_path=None):
         """
         Train basic Random Forest model without optimization.
         """
