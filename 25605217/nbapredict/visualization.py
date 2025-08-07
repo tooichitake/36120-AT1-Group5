@@ -279,6 +279,333 @@ def plot_height_analysis(df: pd.DataFrame):
     plt.tight_layout()
     return fig
 
+def visualize_power_conference(df: pd.DataFrame, target_col: str = 'drafted'):
+    """Visualize power conference feature and its relationship with draft status.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame containing power_conference and target column
+    target_col : str
+        Name of the target column (default: 'drafted')
+    
+    Returns:
+    --------
+    fig : matplotlib.figure.Figure
+        The figure object containing the visualization
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # 1. Draft rate comparison between Power and Non-Power conferences
+    ax1 = axes[0, 0]
+    power_stats = df.groupby('power_conference')[target_col].agg(['mean', 'count'])
+    power_stats.index = ['Non-Power', 'Power']
+    
+    bars = ax1.bar(power_stats.index, power_stats['mean'], color=['#FF6B6B', '#4ECDC4'], 
+                   edgecolor='black', alpha=0.7)
+    ax1.set_ylabel('Draft Rate')
+    ax1.set_title('Draft Rate: Power vs Non-Power Conferences')
+    ax1.set_ylim([0, power_stats['mean'].max() * 1.2])
+    
+    # Add value labels on bars
+    for bar, val in zip(bars, power_stats['mean']):
+        ax1.text(bar.get_x() + bar.get_width()/2., val,
+                f'{val:.2%}', ha='center', va='bottom', fontweight='bold', fontsize=12)
+    
+    # Add count labels below
+    for i, (idx, row) in enumerate(power_stats.iterrows()):
+        ax1.text(i, -0.001, f'n={row["count"]:,}', ha='center', va='top', fontsize=10)
+    
+    ax1.grid(True, alpha=0.3, axis='y')
+    
+    # 2. Distribution of drafted vs not drafted by conference type
+    ax2 = axes[0, 1]
+    conf_data = df.groupby(['power_conference', target_col]).size().unstack(fill_value=0)
+    conf_data.index = ['Non-Power', 'Power']
+    
+    x = np.arange(len(conf_data.index))
+    width = 0.35
+    
+    bars1 = ax2.bar(x - width/2, conf_data[0], width, label='Not Drafted', 
+                    color='#FF6B6B', alpha=0.7)
+    bars2 = ax2.bar(x + width/2, conf_data[1], width, label='Drafted', 
+                    color='#4ECDC4', alpha=0.7)
+    
+    ax2.set_xlabel('Conference Type')
+    ax2.set_ylabel('Number of Players')
+    ax2.set_title('Player Distribution by Conference Type and Draft Status')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(conf_data.index)
+    ax2.legend()
+    ax2.grid(True, alpha=0.3, axis='y')
+    
+    # 3. Top conferences by draft count
+    ax3 = axes[1, 0]
+    if 'conf' in df.columns:
+        conf_draft_stats = df.groupby('conf')[target_col].agg(['sum', 'count', 'mean'])
+        conf_draft_stats = conf_draft_stats[conf_draft_stats['sum'] > 0].sort_values('sum', ascending=False).head(15)
+        
+        bars = ax3.barh(range(len(conf_draft_stats)), conf_draft_stats['sum'], 
+                        color='steelblue', edgecolor='black', alpha=0.7)
+        ax3.set_yticks(range(len(conf_draft_stats)))
+        ax3.set_yticklabels(conf_draft_stats.index)
+        ax3.set_xlabel('Number of Drafted Players')
+        ax3.set_title('Top 15 Conferences by Number of Drafted Players')
+        ax3.invert_yaxis()
+        
+        # Add value labels
+        for bar, val in zip(bars, conf_draft_stats['sum']):
+            ax3.text(val, bar.get_y() + bar.get_height()/2., f'{int(val)}', 
+                    ha='left', va='center', fontsize=9)
+        
+        ax3.grid(True, alpha=0.3, axis='x')
+    
+    # 4. Statistical comparison of features by conference type
+    ax4 = axes[1, 1]
+    
+    # Select key performance metrics
+    metrics = ['Min_per', 'bpm', 'AST_per', 'TS_per']
+    available_metrics = [m for m in metrics if m in df.columns]
+    
+    if available_metrics:
+        power_metrics = df[df['power_conference'] == 1][available_metrics].mean()
+        non_power_metrics = df[df['power_conference'] == 0][available_metrics].mean()
+        
+        x = np.arange(len(available_metrics))
+        width = 0.35
+        
+        bars1 = ax4.bar(x - width/2, non_power_metrics, width, label='Non-Power', 
+                       color='#FF6B6B', alpha=0.7)
+        bars2 = ax4.bar(x + width/2, power_metrics, width, label='Power', 
+                       color='#4ECDC4', alpha=0.7)
+        
+        ax4.set_xlabel('Performance Metrics')
+        ax4.set_ylabel('Average Value')
+        ax4.set_title('Average Performance Metrics: Power vs Non-Power')
+        ax4.set_xticks(x)
+        ax4.set_xticklabels(available_metrics, rotation=45, ha='right')
+        ax4.legend()
+        ax4.grid(True, alpha=0.3, axis='y')
+        
+        # Add value labels
+        for bars in [bars1, bars2]:
+            for bar in bars:
+                height = bar.get_height()
+                ax4.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.1f}', ha='center', va='bottom', fontsize=8)
+    
+    plt.suptitle('Power Conference Feature Analysis', fontsize=16, y=1.02)
+    plt.tight_layout()
+    
+    # Print summary statistics
+    print("\n" + "="*60)
+    print("POWER CONFERENCE SUMMARY STATISTICS")
+    print("="*60)
+    
+    # Power conference distribution
+    power_dist = df['power_conference'].value_counts()
+    print(f"\nConference Distribution:")
+    print(f"  Non-Power Conferences: {power_dist.get(0, 0):,} players ({power_dist.get(0, 0)/len(df):.1%})")
+    print(f"  Power Conferences: {power_dist.get(1, 0):,} players ({power_dist.get(1, 0)/len(df):.1%})")
+    
+    # Draft rates
+    draft_by_power = df.groupby('power_conference')[target_col].mean()
+    print(f"\nDraft Rates:")
+    print(f"  Non-Power: {draft_by_power.get(0, 0):.2%}")
+    print(f"  Power: {draft_by_power.get(1, 0):.2%}")
+    print(f"  Ratio: {draft_by_power.get(1, 0)/draft_by_power.get(0, 0.001):.1f}x higher in Power conferences")
+    
+    # Top power conferences
+    if 'conf' in df.columns:
+        power_confs = ['B10', 'B12', 'ACC', 'SEC', 'P12', 'BE']
+        print(f"\nPower Conferences: {', '.join(power_confs)}")
+        
+        # Draft counts by power conference
+        power_conf_drafts = df[df['conf'].isin(power_confs)].groupby('conf')[target_col].agg(['sum', 'mean'])
+        power_conf_drafts = power_conf_drafts.sort_values('sum', ascending=False)
+        print(f"\nDrafted Players by Power Conference:")
+        for conf, row in power_conf_drafts.iterrows():
+            print(f"  {conf}: {int(row['sum'])} drafted ({row['mean']:.2%} draft rate)")
+    
+    print("="*60)
+    
+    return fig
+
+def visualize_usage_efficiency(df: pd.DataFrame, target_col: str = 'drafted'):
+    """Visualize usage efficiency feature distribution and relationship with draft status.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame containing usage_efficiency and target column
+    target_col : str
+        Name of the target column (default: 'drafted')
+    
+    Returns:
+    --------
+    fig : matplotlib.figure.Figure
+        The figure object containing the visualization
+    """
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    
+    # 1. Distribution by draft status (Violin plot)
+    ax1 = axes[0, 0]
+    drafted_data = df[df[target_col] == 1]['usage_efficiency'].dropna()
+    undrafted_data = df[df[target_col] == 0]['usage_efficiency'].dropna()
+    
+    parts = ax1.violinplot([undrafted_data, drafted_data], 
+                           positions=[0, 1], showmeans=True, showmedians=True)
+    
+    # Color the violin plots
+    colors = ['#FF6B6B', '#4ECDC4']
+    for pc, color in zip(parts['bodies'], colors):
+        pc.set_facecolor(color)
+        pc.set_alpha(0.7)
+    
+    ax1.set_xticks([0, 1])
+    ax1.set_xticklabels(['Not Drafted', 'Drafted'])
+    ax1.set_ylabel('Usage Efficiency (usg × TS%)')
+    ax1.set_title('Usage Efficiency Distribution by Draft Status')
+    ax1.grid(True, alpha=0.3)
+    
+    # Add mean values as text
+    ax1.text(0, undrafted_data.mean(), f'Mean: {undrafted_data.mean():.1f}', 
+             ha='center', va='bottom', fontweight='bold')
+    ax1.text(1, drafted_data.mean(), f'Mean: {drafted_data.mean():.1f}', 
+             ha='center', va='bottom', fontweight='bold')
+    
+    # 2. Histogram with overlaid distributions
+    ax2 = axes[0, 1]
+    ax2.hist(undrafted_data, bins=50, alpha=0.5, label='Not Drafted', 
+             color='#FF6B6B', edgecolor='black', density=True)
+    ax2.hist(drafted_data, bins=30, alpha=0.5, label='Drafted', 
+             color='#4ECDC4', edgecolor='black', density=True)
+    ax2.set_xlabel('Usage Efficiency')
+    ax2.set_ylabel('Density')
+    ax2.set_title('Usage Efficiency Density Distribution')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    
+    # 3. Box plot comparison
+    ax3 = axes[0, 2]
+    box_data = [undrafted_data, drafted_data]
+    bp = ax3.boxplot(box_data, labels=['Not Drafted', 'Drafted'], 
+                     patch_artist=True, notch=True)
+    
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+    
+    ax3.set_ylabel('Usage Efficiency')
+    ax3.set_title('Usage Efficiency Box Plot Comparison')
+    ax3.grid(True, alpha=0.3)
+    
+    # 4. Scatter plot: Usage vs True Shooting with efficiency as size
+    ax4 = axes[1, 0]
+    if 'usg' in df.columns and 'TS_per' in df.columns:
+        for status, color, label in [(0, '#FF6B6B', 'Not Drafted'), 
+                                     (1, '#4ECDC4', 'Drafted')]:
+            mask = df[target_col] == status
+            ax4.scatter(df[mask]['usg'], df[mask]['TS_per'], 
+                       s=df[mask]['usage_efficiency']/10, 
+                       alpha=0.5, color=color, label=label, edgecolors='black', linewidth=0.5)
+        
+        ax4.set_xlabel('Usage Rate (%)')
+        ax4.set_ylabel('True Shooting (%)')
+        ax4.set_title('Usage vs True Shooting (Size = Usage Efficiency)')
+        ax4.legend()
+        ax4.grid(True, alpha=0.3)
+    
+    # 5. Percentile analysis
+    ax5 = axes[1, 1]
+    percentiles = [25, 50, 75, 90, 95, 99]
+    drafted_percentiles = [np.percentile(drafted_data, p) for p in percentiles]
+    undrafted_percentiles = [np.percentile(undrafted_data, p) for p in percentiles]
+    
+    x = np.arange(len(percentiles))
+    width = 0.35
+    
+    bars1 = ax5.bar(x - width/2, undrafted_percentiles, width, 
+                    label='Not Drafted', color='#FF6B6B', alpha=0.7)
+    bars2 = ax5.bar(x + width/2, drafted_percentiles, width, 
+                    label='Drafted', color='#4ECDC4', alpha=0.7)
+    
+    ax5.set_xlabel('Percentile')
+    ax5.set_ylabel('Usage Efficiency Value')
+    ax5.set_title('Usage Efficiency by Percentile')
+    ax5.set_xticks(x)
+    ax5.set_xticklabels([f'{p}th' for p in percentiles])
+    ax5.legend()
+    ax5.grid(True, alpha=0.3)
+    
+    # Add value labels on bars
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax5.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.0f}', ha='center', va='bottom', fontsize=8)
+    
+    # 6. Draft rate by usage efficiency bins
+    ax6 = axes[1, 2]
+    usage_eff_bins = pd.qcut(df['usage_efficiency'], q=10, duplicates='drop')
+    draft_rate_by_bin = df.groupby(usage_eff_bins)[target_col].mean()
+    
+    bars = ax6.bar(range(len(draft_rate_by_bin)), draft_rate_by_bin.values, 
+                   color='steelblue', edgecolor='black', alpha=0.7)
+    
+    # Color bars based on draft rate
+    colors_bar = plt.cm.RdYlGn(draft_rate_by_bin.values / draft_rate_by_bin.max())
+    for bar, color in zip(bars, colors_bar):
+        bar.set_color(color)
+    
+    ax6.set_xlabel('Usage Efficiency Decile')
+    ax6.set_ylabel('Draft Rate')
+    ax6.set_title('Draft Rate by Usage Efficiency Decile')
+    ax6.set_xticks(range(len(draft_rate_by_bin)))
+    ax6.set_xticklabels([f'D{i+1}' for i in range(len(draft_rate_by_bin))], rotation=45)
+    ax6.grid(True, alpha=0.3)
+    
+    # Add percentage labels on bars
+    for i, (bar, val) in enumerate(zip(bars, draft_rate_by_bin.values)):
+        ax6.text(bar.get_x() + bar.get_width()/2., val,
+                f'{val:.1%}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+    
+    plt.suptitle('Usage Efficiency Feature Analysis', fontsize=16, y=1.02)
+    plt.tight_layout()
+    
+    # Print summary statistics
+    print("\n" + "="*60)
+    print("USAGE EFFICIENCY SUMMARY STATISTICS")
+    print("="*60)
+    print(f"\nNot Drafted Players:")
+    print(f"  Mean: {undrafted_data.mean():.2f}")
+    print(f"  Median: {undrafted_data.median():.2f}")
+    print(f"  Std Dev: {undrafted_data.std():.2f}")
+    print(f"  Min: {undrafted_data.min():.2f}")
+    print(f"  Max: {undrafted_data.max():.2f}")
+    
+    print(f"\nDrafted Players:")
+    print(f"  Mean: {drafted_data.mean():.2f}")
+    print(f"  Median: {drafted_data.median():.2f}")
+    print(f"  Std Dev: {drafted_data.std():.2f}")
+    print(f"  Min: {drafted_data.min():.2f}")
+    print(f"  Max: {drafted_data.max():.2f}")
+    
+    print(f"\nDifference (Drafted - Not Drafted):")
+    print(f"  Mean difference: {drafted_data.mean() - undrafted_data.mean():.2f}")
+    print(f"  Median difference: {drafted_data.median() - undrafted_data.median():.2f}")
+    
+    # Statistical test
+    from scipy import stats
+    statistic, p_value = stats.mannwhitneyu(undrafted_data, drafted_data, alternative='two-sided')
+    print(f"\nMann-Whitney U Test:")
+    print(f"  Statistic: {statistic:.2f}")
+    print(f"  P-value: {p_value:.2e}")
+    print(f"  Significant difference: {'Yes' if p_value < 0.05 else 'No'}")
+    print("="*60)
+    
+    return fig
+
 def evaluate_model_with_visualizations(y_true, y_pred_proba, y_pred_binary=None, model_name="Model"):
     """Evaluate model with comprehensive visualizations."""
     from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, roc_curve
