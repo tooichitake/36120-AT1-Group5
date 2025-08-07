@@ -1,13 +1,32 @@
 [tool.poetry]
-name = "25605217"
-version = "0.1.0"
-description = "Machine Learning Project AT1"
-package-mode = false
-authors = ["Your Name <you@example.com>"]
+name = "nbapredict"
+version = "1.0.0"
+description = "NBA Draft Prediction using Machine Learning - A comprehensive package for predicting basketball draft prospects"
+package-mode = true
+authors = ["Zhiyuan Zhao <25605217@student.uts.edu.au>"]
 readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/tooichitake/36120-AT1-Group5"
+repository = "https://github.com/tooichitake/36120-AT1-Group5"
+keywords = ["nba", "machine-learning", "sports-analytics", "basketball", "draft-prediction"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+packages = [{include = "nbapredict"}]
+include = [
+    "models/*.pkl",
+    "models/*.txt",
+    "models/*.cbm",
+    "models/*.json"
+]
 
 [tool.poetry.dependencies]
-python = "3.11.4"
+python = "==3.11.4"
 scikit-learn = "1.5.1"
 pandas = "2.2.2"
 jupyterlab = "4.2.3"

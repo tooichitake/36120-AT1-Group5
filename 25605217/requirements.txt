@@ -1,4 +1,4 @@
-python==3.11.4
+# Python 3.11.4 required
 scikit-learn==1.5.1
 pandas==2.2.2
 jupyterlab==4.2.3
@@ -14,4 +14,4 @@ seaborn>=0.13.2
 catboost==1.2.8
 numpy>=1.26.0
 matplotlib>=3.8.0
-utstd>=0.1.0
+# utstd>=0.1.0 # Only needed for UTS notebooks

@@ -1,368 +1,192 @@
-# NBA Draft Prediction Using Machine Learning
-## Advanced Basketball Analytics Project
+# NBAPredict - NBA Draft Prediction Package
 
----
+[![PyPI - Version](https://img.shields.io/pypi/v/nbapredict)](https://test.pypi.org/project/nbapredict/)
+[![Python Version](https://img.shields.io/badge/python-3.11.4-blue)](https://www.python.org/downloads/release/python-3114/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🏀 Executive Summary
+A comprehensive machine learning package for predicting NBA draft prospects using college basketball statistics. Achieves >99% AUC using state-of-the-art gradient boosting models.
 
-This project implements state-of-the-art machine learning models to predict NBA draft outcomes for college basketball players. Using comprehensive performance statistics, physical attributes, and advanced feature engineering, we achieve >99% AUC in identifying future NBA talent.
-
-### Key Achievements
-- **99.5%+ AUC** across all three models (LightGBM, CatBoost, Random Forest)
-- **$25M+ projected ROI** through improved draft decisions
-- **40% reduction** in scouting costs through targeted player evaluation
-- **Production-ready models** with full deployment pipeline
-
----
-
-## 📊 Project Information
-
-**Group**: 5  
-**Course**: 36120 Data Science Practice  
-**Semester**: 2025 Spring  
-**Institution**: University of Technology Sydney  
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.11.4 (exact version required for reproducibility)
-- 8GB+ RAM for model training
-- CUDA-capable GPU (optional, for faster CatBoost training)
-
-### Installation
+## 🚀 Installation
 
 ```bash
-# Clone repository
+pip install -i https://test.pypi.org/simple/ nbapredict
+```
+
+For development:
+```bash
 git clone https://github.com/tooichitake/36120-AT1-Group5.git
 cd 36120-AT1-Group5/25605217
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Run Experiments
-
-```bash
-# Launch Jupyter Lab
-jupyter lab
-
-# Navigate to notebooks/ and run:
-# 1. Experiment 1: LightGBM with DART boosting
-# 2. Experiment 2: CatBoost with native categorical handling
-# 3. Experiment 3: Random Forest with balanced class weights
-```
-
----
-
-## 📁 Project Structure
-
-```
-25605217/
-│
-├── basketball_draft_prediction/      # Main package
-│   ├── __init__.py
-│   ├── dataset.py                    # Data loading & preprocessing
-│   ├── features.py                   # Feature engineering
-│   ├── visualization.py              # Beautiful visualizations
-│   └── modeling/
-│       ├── train.py                  # Model training with Optuna
-│       └── predict.py                # Prediction utilities
-│
-├── data/
-│   ├── raw/                         # Original datasets
-│   │   ├── train.csv
-│   │   └── test.csv
-│   ├── processed/                   # Feature-engineered data
-│   └── interim/                     # Intermediate transformations
-│
-├── models/                          # Trained models
-│   ├── lightgbm_model.txt
-│   ├── catboost_model.cbm
-│   └── random_forest_model.pkl
-│
-├── notebooks/                       # Experiment notebooks
-│   ├── 36120-25SP-group5-25605217-AT1-experiment-1.ipynb
-│   ├── 36120-25SP-group5-25605217-AT1-experiment-2.ipynb
-│   └── 36120-25SP-group5-25605217-AT1-experiment-3.ipynb
-│
-├── reports/
-│   └── figures/                    # Generated visualizations
-│
-├── requirements.txt                # Python dependencies
-├── pyproject.toml                  # Poetry configuration
-└── README.md                       # This file
-```
-
----
-
-## 🔬 Three Experiments
-
-### Experiment 1: LightGBM with DART Boosting
-- **Algorithm**: LightGBM with Dropouts meet Multiple Additive Regression Trees (DART)
-- **Key Features**: 
-  - Handles missing values natively
-  - Efficient leaf-wise tree growth
-  - Optuna hyperparameter optimization
-- **Best AUC**: 0.9966
-- **Training Time**: ~2 minutes
-
-### Experiment 2: CatBoost with Ordered Boosting
-- **Algorithm**: CatBoost with symmetric trees
-- **Key Features**:
-  - Native categorical feature handling (no encoding needed)
-  - Ordered boosting to prevent overfitting
-  - Automatic class weight balancing
-- **Best AUC**: 0.9952
-- **Training Time**: ~5 minutes
-
-### Experiment 3: Random Forest Ensemble
-- **Algorithm**: Random Forest with balanced subsample
-- **Key Features**:
-  - Bootstrap aggregation for stability
-  - Feature importance through Gini impurity
-  - Robust to outliers
-- **Best AUC**: 0.9951
-- **Training Time**: ~1 minute
-
----
-
-## 🛠️ Technical Implementation
-
-### Data Pipeline
+## 📊 Quick Start
 
 ```python
-from basketball_draft_prediction import dataset, features, visualization
+import nbapredict as nbp
 
-# Load and prepare data
-train_df, test_df = dataset.load_data('data/raw')
+# Load your player data
+player_data = pd.read_csv('college_players.csv')
 
-# Convert to float64 for precision
-train_df = dataset.convert_to_float64(train_df)
+# Get predictions using pre-trained models
+predictions = nbp.predict_draft_probability(player_data)
 
-# Feature engineering
-train_df = features.apply_all_feature_engineering(train_df)
-
-# Split with stratification
-X_train, X_val, X_test, y_train, y_val, y_test = dataset.split_data_stratified(
-    X, y, test_size=0.15, val_size=0.15, random_state=42
-)
+# View results
+print(predictions[['player_name', 'draft_probability']].head())
 ```
 
-### Model Training with Optuna
+## 🎯 Features
+
+- **Pre-trained Models**: LightGBM, CatBoost, and Random Forest models ready to use
+- **High Accuracy**: >99% AUC on test data
+- **Comprehensive Features**: 60+ engineered features from college statistics
+- **Easy Integration**: Simple API for predictions
+- **Jupyter Support**: Interactive notebooks for experimentation
+
+## 📈 Model Performance
+
+| Model | AUC | Precision | Recall | Training Time |
+|-------|-----|-----------|--------|---------------|
+| LightGBM | 0.9966 | 0.90 | 0.50 | 2 min |
+| CatBoost | 0.9952 | 0.48 | 0.72 | 5 min |
+| Random Forest | 0.9951 | 0.57 | 0.72 | 1 min |
+
+## 📝 Usage Examples
+
+### Basic Prediction
 
 ```python
-from basketball_draft_prediction.modeling.train import LightGBMTrainer
+import nbapredict as nbp
+from nbapredict import NBAPrediction
 
-# Initialize trainer
-trainer = LightGBMTrainer(random_state=42, verbose=True)
+# Initialize predictor
+predictor = NBAPrediction(model='lightgbm')
 
-# Train with automatic hyperparameter optimization
-model = trainer.train_with_optuna(
-    X_train, y_train, X_val, y_val,
-    n_trials=20
-)
+# Predict single player
+player_stats = {
+    'GP': 35,
+    'Min_per': 28.5,
+    'TS_per': 0.585,
+    'AST_per': 15.2,
+    'height_inches': 78,
+    'conf': 'ACC'
+}
+probability = predictor.predict_single(player_stats)
+print(f"Draft probability: {probability:.2%}")
+```
 
-# Get predictions
-y_pred_binary, y_pred_proba = trainer.predict(X_test)
+### Batch Prediction
+
+```python
+# Predict multiple players
+predictions = predictor.predict_batch('players_2025.csv')
+predictions.to_csv('draft_predictions.csv', index=False)
+```
+
+### Custom Threshold Analysis
+
+```python
+# Analyze at different confidence levels
+thresholds = [0.3, 0.5, 0.7, 0.9]
+analysis = predictor.analyze_thresholds(predictions, thresholds)
+print(analysis)
+```
+
+## 🛠️ Advanced Features
+
+### Feature Engineering
+
+```python
+from nbapredict.features import engineer_features
+
+# Apply feature engineering
+enhanced_data = engineer_features(raw_data)
+```
+
+### Model Training
+
+```python
+from nbapredict.modeling import train
+
+# Train your own model
+trainer = train.LightGBMTrainer(random_state=42)
+model = trainer.train_with_optuna(X_train, y_train, X_val, y_val)
 ```
 
 ### Visualization
 
 ```python
-from basketball_draft_prediction import visualization
+from nbapredict.visualization import plot_predictions
 
-# Set beautiful style
-visualization.set_visualization_style()
-
-# Evaluate model
-auc_score = visualization.evaluate_model(
-    y_test, y_pred_proba, y_pred_binary,
-    title="Model Performance"
-)
-
-# Plot feature importance
-fig = visualization.plot_feature_importance(importance_df, top_n=20)
+# Visualize predictions
+plot_predictions(predictions, save_path='predictions.png')
 ```
 
----
+## 📦 Package Structure
 
-## 📈 Key Features & Engineering
-
-### Statistical Features
-- **Games Played (GP)**: Durability indicator
-- **Minutes Per Game**: Coach trust metric
-- **Box Plus/Minus (BPM)**: Overall impact
-- **Usage Rate**: Offensive responsibility
-- **True Shooting %**: Shooting efficiency
-
-### Engineered Features
-- **Usage Efficiency**: `usage_rate × true_shooting_pct`
-- **All-Around Score**: Weighted combination of assists, rebounds, defense
-- **Minutes Impact**: Playing time relative to team average
-- **Rare Skills**: Big man shooters, playmaking bigs
-- **Power Conference**: Binary indicator for major conferences
-
-### Categorical Features
-- **Team**: 355 unique colleges
-- **Conference**: 36 conferences
-- **Year**: Fr/So/Jr/Sr
-- **Player Type**: Scholarship/Walk-on
-
----
-
-## 📊 Model Performance Metrics
-
-| Model | AUC | Precision | Recall | F1 Score | Training Time |
-|-------|-----|-----------|--------|----------|---------------|
-| LightGBM | **0.9966** | 0.90 | 0.50 | 0.64 | 2 min |
-| CatBoost | 0.9952 | 0.48 | **0.72** | 0.58 | 5 min |
-| Random Forest | 0.9951 | 0.57 | 0.72 | **0.63** | 1 min |
-
-### Business Impact Analysis
-
-**Financial Metrics** (0.5 probability threshold):
-- Scouting cost reduction: **$1-2M annually**
-- Value per correct pick: **$5M**
-- Net ROI: **$25M+ over 5 years**
-
-**Operational Efficiency**:
-- Focus on **1-2%** of players with highest probability
-- **56-77%** scouting accuracy
-- **55-72%** talent capture rate
-
----
-
-## 🔧 Dependencies
-
-### Core Libraries
 ```
-pandas==2.2.2
-numpy==1.24.3
-scikit-learn==1.5.1
+nbapredict/
+├── __init__.py          # Package initialization
+├── dataset.py           # Data loading and preprocessing
+├── features.py          # Feature engineering
+├── visualization.py     # Plotting and analysis
+└── modeling/           # Model training and prediction
+    ├── __init__.py
+    ├── train.py
+    └── predict.py
 ```
 
-### ML Frameworks
-```
-lightgbm==4.4.0
-catboost==1.2.8
-xgboost==2.1.0
-```
+## 🔧 Requirements
 
-### Optimization & Visualization
-```
-optuna>=4.4.0
-optuna-integration>=4.4.0
-seaborn>=0.13.2
-matplotlib>=3.7.1
-```
+- Python 3.11.4 (exact version required)
+- pandas >= 2.2.2
+- scikit-learn >= 1.5.1
+- lightgbm >= 4.4.0
+- catboost >= 1.2.8
+- numpy >= 1.26.0
 
-### Development
-```
-jupyterlab==4.2.3
-ipykernel>=6.25.0
-joblib==1.4.2
-```
+## 📊 Data Format
 
----
+Input data should include these features:
+- **Basic Stats**: GP, Min_per, Ortg, usg, eFG, TS_per
+- **Advanced Stats**: AST_per, TO_per, BPM, WS_40
+- **Physical**: height (in format "6-5" for 6'5")
+- **Context**: team, conf, yr (Fr/So/Jr/Sr)
 
-## 🎯 Key Insights
+## 🎓 Academic Context
 
-1. **Recruit Ranking** is the strongest single predictor when available
-2. **Games Played** shows highest correlation (0.35) with draft success
-3. **Power conference** players have 3x higher draft rates
-4. **Height** remains critical but must combine with skills
-5. **Advanced metrics** (BPM, WS/40) outperform traditional stats
-
----
-
-## 🚦 Production Deployment
-
-### Model Serving
-```python
-# Load production model
-import joblib
-model = joblib.load('models/lightgbm_model.pkl')
-
-# Make predictions
-probabilities = model.predict_proba(features)
-```
-
-### API Integration
-```python
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.json
-    features = preprocess(data)
-    prob = model.predict_proba(features)[0, 1]
-    return jsonify({'draft_probability': prob})
-```
-
----
-
-## 📝 Future Enhancements
-
-1. **Model Ensemble** (20% improvement expected)
-   - Weighted average of all three models
-   - Stacking with meta-learner
-
-2. **Temporal Features** (15% improvement)
-   - Player progression over seasons
-   - Conference strength trends
-
-3. **External Data** (25% improvement)
-   - High school rankings
-   - AAU performance
-   - Combine measurements
-
-4. **Position-Specific Models** (10% improvement)
-   - Separate models for guards/forwards/centers
-   - Position-specific feature importance
-
----
-
-## 🤝 Contributing
-
-This project was developed as part of an academic assessment. For questions or collaboration:
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
----
+Developed as part of UTS 36120 Data Science Practice (2025 Spring).
 
 ## 📄 License
 
-This project is for educational purposes as part of UTS 36120 Data Science Practice.
+MIT License - see [LICENSE](LICENSE) file for details.
 
----
+## 👤 Author
+
+**Zhiyuan Zhao**  
+Email: 25605217@student.uts.edu.au  
+GitHub: [@tooichitake](https://github.com/tooichitake)
 
 ## 🙏 Acknowledgments
 
-- **UTS Faculty** for course design and guidance
-- **Group 5 Members** for collaboration
-- **NBA & College Basketball** for inspiring this analysis
-- **Open Source Community** for amazing ML libraries
+- UTS Faculty for guidance
+- NBA and NCAA for inspiring this analysis
+- Open source community for amazing ML libraries
 
----
+## 📚 Citation
 
-## 📧 Contact
+If you use this package in your research, please cite:
 
-For questions or collaboration regarding this project, please use:
-- GitHub Issues: [Project Repository](https://github.com/36120-AT1-Group5)
-- Academic Inquiries: Contact through official university channels
+```bibtex
+@software{nbapredict_2025,
+  author = {Zhao, Zhiyuan},
+  title = {NBAPredict: Machine Learning for NBA Draft Prospect Analysis},
+  year = {2025},
+  url = {https://github.com/tooichitake/36120-AT1-Group5}
+}
+```
 
----
+## 🔗 Links
 
-*Last Updated: January 2025*
+- [Documentation](https://github.com/tooichitake/36120-AT1-Group5/wiki)
+- [Issue Tracker](https://github.com/tooichitake/36120-AT1-Group5/issues)
+- [TestPyPI Package](https://test.pypi.org/project/nbapredict/)
