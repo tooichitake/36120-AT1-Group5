@@ -1,5 +1,5 @@
 [project]
-name = "my-utils-asm1-2"
+name = "my-utils-new"
 version = "0.1.0"
 description = ""
 authors = [
@@ -11,11 +11,13 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "my_utils_asm1", from = "src"}]
-name = "my_utils_asm1"
+packages = [{include = "my_utils_new", from = "src"}]
+name = "my_utils_new"
 version = "0.1.0"
 description = "Utility functions for data analysis"
 authors = ["linszuyutiff@gmail.com"]
+
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
