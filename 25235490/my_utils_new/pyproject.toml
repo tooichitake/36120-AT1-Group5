@@ -1,0 +1,24 @@
+[project]
+name = "my-utils-new"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Mynameisszuyu",email = "linszuyutiff@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+]
+
+[tool.poetry]
+packages = [{include = "my_utils_new", from = "src"}]
+name = "my_utils_new"
+version = "0.1.0"
+description = "Utility functions for data analysis"
+authors = ["linszuyutiff@gmail.com"]
+
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
