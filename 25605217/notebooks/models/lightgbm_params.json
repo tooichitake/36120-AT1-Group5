@@ -13,7 +13,7 @@
     "precision": 0.9,
     "recall": 0.5,
     "f1": 0.6428571428571429,
-    "roc_auc": 0.9968152866242038
+    "roc_auc": 0.9971944191689415
   },
   "feature_names": [
     "team",
@@ -79,12 +79,12 @@
     "height_numeric",
     "power_conf",
     "yr_numeric",
-    "power_conference",
     "efficiency_score",
     "all_around_score",
     "versatile_guard",
     "stretch_big",
     "defensive_specialist",
+    "power_conference",
     "pts_per_min",
     "reb_per_min",
     "ast_pts_ratio",
@@ -110,5 +110,5 @@
   "is_unbalanced": true,
   "num_boost_round": 200,
   "early_stopping_rounds": 50,
-  "best_iteration": 163
+  "best_iteration": 183
 }
